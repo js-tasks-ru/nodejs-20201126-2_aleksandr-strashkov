@@ -2,9 +2,8 @@ const url = require('url');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
-const {pipeline, PassThrough} = require('stream');
+const {PassThrough} = require('stream');
 const LimitSizeStream = require('./LimitSizeStream');
-const LimitExceededError = require('./LimitExceededError');
 
 const server = new http.Server();
 
@@ -37,27 +36,20 @@ server.on('request', (req, res) => {
         const limitSizeStream = new LimitSizeStream({limit: 1024 * 1024});
         const readStream = new PassThrough();
 
-        req.pipe(readStream);
+        limitSizeStream.on('error', () => {
+          fs.unlinkSync(filepath);
+          res.statusCode = 413;
+          res.end();
+        });
 
-        pipeline(
-            readStream,
-            limitSizeStream,
-            writeStream,
-            (err) => {
-              if (err) {
-                fs.unlinkSync(filepath);
-
-                if (err instanceof LimitExceededError) {
-                  res.statusCode = 413;
-                } else {
-                  res.statusCode = 500;
-                }
-              } else {
-                res.statusCode = 201;
-              }
+        req
+            .pipe(readStream)
+            .pipe(limitSizeStream)
+            .pipe(writeStream)
+            .on('close', () => {
+              res.statusCode = 201;
               res.end();
-            },
-        );
+            });
       });
 
       break;
