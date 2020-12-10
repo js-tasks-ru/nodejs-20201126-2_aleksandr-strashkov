@@ -2,7 +2,7 @@ const url = require('url');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
-const {pipeline} = require('stream');
+const {pipeline, PassThrough} = require('stream');
 const LimitSizeStream = require('./LimitSizeStream');
 const LimitExceededError = require('./LimitExceededError');
 
@@ -29,11 +29,18 @@ server.on('request', (req, res) => {
         return res.end();
       });
 
+      req.on('aborted', () => {
+        fs.unlinkSync(filepath);
+      });
+
       writeStream.on('open', () => {
         const limitSizeStream = new LimitSizeStream({limit: 1024 * 1024});
+        const readStream = new PassThrough();
+
+        req.pipe(readStream);
 
         pipeline(
-            req,
+            readStream,
             limitSizeStream,
             writeStream,
             (err) => {
