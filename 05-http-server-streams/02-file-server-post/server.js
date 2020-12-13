@@ -3,7 +3,6 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const {PassThrough} = require('stream');
-const LimitSizeStream = require('./LimitSizeStream');
 
 const server = new http.Server();
 
@@ -33,21 +32,18 @@ server.on('request', (req, res) => {
       });
 
       writeStream.on('open', () => {
-        const limitSizeStream = new LimitSizeStream({limit: 1024 * 1024});
         const readStream = new PassThrough();
-
-        limitSizeStream.on('error', () => {
-          fs.unlinkSync(filepath);
-          res.statusCode = 413;
-          res.end();
-        });
 
         req
             .pipe(readStream)
-            .pipe(limitSizeStream)
             .pipe(writeStream)
             .on('close', () => {
-              res.statusCode = 201;
+              if (writeStream.bytesWritten > 1024 * 1024) {
+                res.statusCode = 413;
+                fs.unlinkSync(filepath);
+              } else {
+                res.statusCode = 201;
+              }
               res.end();
             });
       });
