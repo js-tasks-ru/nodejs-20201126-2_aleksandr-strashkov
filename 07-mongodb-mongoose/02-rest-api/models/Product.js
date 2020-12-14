@@ -30,6 +30,19 @@ const productSchema = new mongoose.Schema({
 
   images: [String],
 
+}, {
+  toJSON: {
+    transform: function(doc, ret) {
+      return {
+        ...ret,
+        __v: undefined,
+        _id: undefined,
+        id: ret._id.toString(),
+        category: ret.category.toString(),
+        subcategory: ret.subcategory.toString(),
+      };
+    },
+  },
 });
 
 module.exports = connection.model('Product', productSchema);
