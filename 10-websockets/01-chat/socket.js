@@ -37,7 +37,7 @@ function socket(server) {
 
   io.use(auth);
 
-  io.on('connection', async function(socket) {
+  io.on('connection', function(socket) {
     socket.on('message', saveMessage);
   });
 
